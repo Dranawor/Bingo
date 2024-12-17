@@ -50,14 +50,10 @@
             background-color: #333;
         }
 
-        /* Adjusted dimensions:
-           - On desktop >768px wide, the card won't exceed original width (768px).
-           - On smaller screens, it will be 90% of viewport width.
-        */
         #bingoCardContainer {
             position: relative;
             width: min(90vw, 768px);
-            height: calc(min(90vw, 768px) * (1365 / 768)); /* Maintain aspect ratio */
+            height: calc(min(90vw, 768px) * (1365 / 768));
             background: url('https://i.imgur.com/wSbpsp6.png') no-repeat center center;
             background-size: contain;
             margin-top: 20px;
@@ -65,12 +61,6 @@
 
         .grid-area {
             position: absolute;
-            /* Percentages based on the original image (768x1365):
-               top: 440/1365 ≈ 32.2%
-               left: 49/768 ≈ 6.4%
-               width: 670/768 ≈ 87.3%
-               height: 765/1365 ≈ 56%
-            */
             top: 32.2%;
             left: 6.4%;
             width: 87.3%;
@@ -93,22 +83,22 @@
         }
 
         .grid-item span {
-            font-size: 14px; /* Reduced for better fit */
+            font-size: clamp(12px, 2.5vw, 14px); /* Responsive font size */
             font-weight: bold;
-            line-height: 1.1; /* Slightly tighter line-height */
+            line-height: 1.2;
             color: #333;
             white-space: normal;
             word-break: break-word;
             display: -webkit-box;
             -webkit-box-orient: vertical;
-            -webkit-line-clamp: 3; /* Still clamp to 3 lines */
+            -webkit-line-clamp: 3; /* Limit to 3 lines */
             overflow: hidden;
             max-width: 95%;
             margin-top: 2px;
         }
 
         .free-square {
-            cursor: default; /* Not clickable */
+            cursor: default;
         }
 
         .free-square img {
@@ -253,7 +243,6 @@
             }
         }
 
-        // Compress card into indexes
         function cardToIndexes() {
             const indices = [];
             for (let row = 0; row < 5; row++) {
