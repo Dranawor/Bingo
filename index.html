@@ -244,8 +244,6 @@
         }
 
         // Compress card into indexes
-        // -1 for free square
-        // Otherwise index in items array
         function cardToIndexes() {
             const indices = [];
             for (let row = 0; row < 5; row++) {
@@ -289,14 +287,9 @@
 
         // Convert indices array to base64
         function indicesToBase64(indices) {
-            // indices are small integers, can store in a byte each
             const bytes = new Uint8Array(indices.length * 2); 
-            // store each index as a signed 16-bit integer for simplicity
-            // (-1 for free, or 0..items.length-1)
-            // Or store as single byte if items < 256, here items < 256 so can store in one byte:
             const b = new Uint8Array(indices.length);
             for (let i = 0; i < indices.length; i++) {
-                // If -1 for free square, store 255
                 b[i] = (indices[i] === -1) ? 255 : indices[i];
             }
             let str = String.fromCharCode.apply(null, b);
@@ -310,7 +303,6 @@
             for (let i = 0; i < str.length; i++) {
                 arr[i] = str.charCodeAt(i);
             }
-            // Convert 255 back to -1
             return Array.from(arr).map(v => v === 255 ? -1 : v);
         }
 
@@ -324,7 +316,6 @@
             for (let byte of bytes) {
                 bin += byte.toString(2).padStart(8, '0');
             }
-            // We know we only need 25 bits, truncate if needed
             return bin.slice(0, 25);
         }
 
