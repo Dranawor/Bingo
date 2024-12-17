@@ -27,7 +27,7 @@
             background: #fff;
             padding: 20px;
             border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             margin-top: 20px;
         }
 
@@ -105,8 +105,8 @@
         }
 
         .free-square img {
-            max-width: 105px; /* Increased from 70px to 105px */
-            max-height: 105px; /* Increased from 70px to 105px */
+            max-width: 105px; 
+            max-height: 105px; 
         }
 
         .grid-item.marked::after {
@@ -121,7 +121,7 @@
             line-height: 1;
             pointer-events: none;
             z-index: 2;
-            opacity: 0.7; /* Slightly transparent */
+            opacity: 0.7;
         }
 
         .button-row {
@@ -181,8 +181,8 @@
             "Complete a game puzzle"
         ];
 
-        let currentCard = null;   // Store the layout of the card
-        let markedStates = null;  // Store the marked state of each cell (true/false)
+        let currentCard = null;   // 2D array: each cell = an item text or "Free Square"
+        let markedStates = null;  // 2D array of booleans
 
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
@@ -195,7 +195,6 @@
         function generateBingoCard() {
             const shuffledItems = shuffleArray([...items]);
             const bingoCard = Array.from({ length: 5 }, () => []);
-
             let itemIndex = 0;
             for (let row = 0; row < 5; row++) {
                 for (let col = 0; col < 5; col++) {
@@ -206,7 +205,6 @@
                     }
                 }
             }
-
             currentCard = bingoCard;
             markedStates = Array.from({ length: 5 }, () => Array(5).fill(false));
             renderBingoCard(bingoCard, markedStates);
@@ -214,7 +212,7 @@
 
         function renderBingoCard(bingoCard, markedStates) {
             const grid = document.getElementById("bingoGrid");
-            grid.innerHTML = ""; // clear previous
+            grid.innerHTML = ""; 
 
             for (let row = 0; row < 5; row++) {
                 for (let col = 0; col < 5; col++) {
@@ -226,19 +224,16 @@
                         const img = document.createElement("img");
                         img.src = FREE_SQUARE_IMG;
                         div.appendChild(img);
-                        // no click listener
                     } else {
                         const span = document.createElement("span");
                         span.textContent = bingoCard[row][col];
                         div.appendChild(span);
-
                         div.addEventListener("click", () => {
                             div.classList.toggle("marked");
                             markedStates[row][col] = div.classList.contains("marked");
                         });
                     }
 
-                    // Apply marked state if it exists
                     if (markedStates[row][col]) {
                         div.classList.add("marked");
                     }
@@ -248,6 +243,111 @@
             }
         }
 
+        // Compress card into indexes
+        // -1 for free square
+        // Otherwise index in items array
+        function cardToIndexes() {
+            const indices = [];
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 5; col++) {
+                    if (row === 2 && col === 2) {
+                        indices.push(-1);
+                    } else {
+                        const text = currentCard[row][col];
+                        const idx = items.indexOf(text);
+                        indices.push(idx);
+                    }
+                }
+            }
+            return indices;
+        }
+
+        // Convert markedStates to a binary string
+        function markedToBinary() {
+            let bin = "";
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 5; col++) {
+                    bin += markedStates[row][col] ? "1" : "0";
+                }
+            }
+            return bin;
+        }
+
+        // Convert binary string to base64
+        function binToBase64(bin) {
+            // Convert binary to a byte array
+            const len = Math.ceil(bin.length / 8);
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                const chunk = bin.slice(i*8, i*8+8).padEnd(8, '0');
+                bytes[i] = parseInt(chunk, 2);
+            }
+            // base64 encode
+            let str = String.fromCharCode.apply(null, bytes);
+            return btoa(str);
+        }
+
+        // Convert indices array to base64
+        function indicesToBase64(indices) {
+            // indices are small integers, can store in a byte each
+            const bytes = new Uint8Array(indices.length * 2); 
+            // store each index as a signed 16-bit integer for simplicity
+            // (-1 for free, or 0..items.length-1)
+            // Or store as single byte if items < 256, here items < 256 so can store in one byte:
+            const b = new Uint8Array(indices.length);
+            for (let i = 0; i < indices.length; i++) {
+                // If -1 for free square, store 255
+                b[i] = (indices[i] === -1) ? 255 : indices[i];
+            }
+            let str = String.fromCharCode.apply(null, b);
+            return btoa(str);
+        }
+
+        // Decompress from URL:
+        function base64ToIndices(b64) {
+            const str = atob(b64);
+            const arr = new Uint8Array(str.length);
+            for (let i = 0; i < str.length; i++) {
+                arr[i] = str.charCodeAt(i);
+            }
+            // Convert 255 back to -1
+            return Array.from(arr).map(v => v === 255 ? -1 : v);
+        }
+
+        function base64ToBinary(b64) {
+            const str = atob(b64);
+            const bytes = new Uint8Array(str.length);
+            for (let i = 0; i < str.length; i++) {
+                bytes[i] = str.charCodeAt(i);
+            }
+            let bin = "";
+            for (let byte of bytes) {
+                bin += byte.toString(2).padStart(8, '0');
+            }
+            // We know we only need 25 bits, truncate if needed
+            return bin.slice(0, 25);
+        }
+
+        // Rebuild card and marked states from compressed format
+        function rebuildCard(indices, bin) {
+            const bingoCard = Array.from({ length: 5 }, () => []);
+            const marked = Array.from({ length: 5 }, () => []);
+            let idx = 0;
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 5; col++) {
+                    const val = indices[idx];
+                    if (val === -1) {
+                        bingoCard[row][col] = "Free Square";
+                    } else {
+                        bingoCard[row][col] = items[val];
+                    }
+                    marked[row][col] = (bin[idx] === '1');
+                    idx++;
+                }
+            }
+            return { bingoCard, marked };
+        }
+
         function downloadPDF() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
@@ -255,25 +355,19 @@
             const scale = 2;
 
             html2canvas(container, { scale: scale, useCORS: true, allowTaint: false }).then(canvas => {
-                // Convert to JPEG with compression
                 const imgData = canvas.toDataURL('image/jpeg', 0.5);
-
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const pageHeight = doc.internal.pageSize.getHeight();
-
                 const margin = 10;
                 const availableWidth = pageWidth - margin * 2;
                 const availableHeight = pageHeight - margin * 2;
-
                 const imgRatio = canvas.height / canvas.width; 
                 let imgWidth = availableWidth;
                 let imgHeight = imgWidth * imgRatio;
-
                 if (imgHeight > availableHeight) {
                     imgHeight = availableHeight;
                     imgWidth = imgHeight / imgRatio;
                 }
-
                 doc.addImage(imgData, "JPEG", margin, margin, imgWidth, imgHeight);
                 doc.save("bingo_card.pdf");
             });
@@ -285,47 +379,41 @@
                 return;
             }
 
-            // Serialize currentCard and markedStates
-            const cardStr = JSON.stringify(currentCard);
-            const markedStr = JSON.stringify(markedStates);
-
-            const encodedCard = btoa(cardStr);
-            const encodedMarked = btoa(markedStr);
+            const indices = cardToIndexes();
+            const indexB64 = indicesToBase64(indices);
+            const bin = markedToBinary();
+            const markedB64 = binToBase64(bin);
 
             const url = new URL(window.location.href);
-            url.searchParams.set("card", encodedCard);
-            url.searchParams.set("marked", encodedMarked);
+            url.searchParams.set("c", indexB64);
+            url.searchParams.set("m", markedB64);
 
-            // Copy URL to clipboard
             const shareURL = url.toString();
             navigator.clipboard.writeText(shareURL).then(() => {
-                // Instructions after copying the link
                 alert("Your progress link has been copied to the clipboard.\n\nPlease save this URL in a safe place. You can share it or reload this page with the URL at any time to restore your progress.");
             }).catch(() => {
                 alert("Failed to copy link. Please copy the URL from your browser's address bar and save it.");
             });
         }
 
-        // On load, check if we have a card and marked states in URL
         window.addEventListener("DOMContentLoaded", () => {
             const urlParams = new URLSearchParams(window.location.search);
-            const encodedCard = urlParams.get("card");
-            const encodedMarked = urlParams.get("marked");
-
-            if (encodedCard && encodedMarked) {
+            const cParam = urlParams.get("c");
+            const mParam = urlParams.get("m");
+            if (cParam && mParam) {
                 try {
-                    const card = JSON.parse(atob(encodedCard));
-                    const marked = JSON.parse(atob(encodedMarked));
-                    currentCard = card;
+                    const indices = base64ToIndices(cParam);
+                    const bin = base64ToBinary(mParam);
+                    const { bingoCard, marked } = rebuildCard(indices, bin);
+                    currentCard = bingoCard;
                     markedStates = marked;
-                    renderBingoCard(card, marked);
+                    renderBingoCard(bingoCard, marked);
                 } catch (e) {
                     console.error("Error decoding card data:", e);
                 }
             }
         });
 
-        // Load html2canvas dynamically
         (function loadHtml2Canvas() {
             const script = document.createElement("script");
             script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
