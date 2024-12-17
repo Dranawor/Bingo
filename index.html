@@ -18,6 +18,7 @@
             align-items: center;
             justify-content: flex-start;
             min-height: 100vh;
+            box-sizing: border-box;
         }
 
         main {
@@ -29,6 +30,9 @@
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             margin-top: 20px;
+            width: 100%;
+            max-width: 800px;
+            box-sizing: border-box;
         }
 
         button {
@@ -46,32 +50,35 @@
             background-color: #333;
         }
 
+        /* Adjusted dimensions:
+           - On desktop >768px wide, the card won't exceed original width (768px).
+           - On smaller screens, it will be 90% of viewport width.
+        */
         #bingoCardContainer {
             position: relative;
-            width: 768px;
-            height: 1365px;
-        }
-
-        #bingoCardContainer img.background {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 768px;
-            height: 1365px;
-            object-fit: contain;
-            z-index: 0;
+            width: min(90vw, 768px);
+            height: calc(min(90vw, 768px) * (1365 / 768)); /* Maintain aspect ratio */
+            background: url('https://i.imgur.com/wSbpsp6.png') no-repeat center center;
+            background-size: contain;
+            margin-top: 20px;
         }
 
         .grid-area {
             position: absolute;
-            top: 440px;
-            left: 49px;
-            width: 670px;
-            height: 765px;
+            /* Percentages based on the original image (768x1365):
+               top: 440/1365 ≈ 32.2%
+               left: 49/768 ≈ 6.4%
+               width: 670/768 ≈ 87.3%
+               height: 765/1365 ≈ 56%
+            */
+            top: 32.2%;
+            left: 6.4%;
+            width: 87.3%;
+            height: 56%;
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             grid-template-rows: repeat(5, 1fr);
-            z-index: 1; 
+            box-sizing: border-box;
         }
 
         .grid-item {
@@ -79,25 +86,25 @@
             align-items: center;
             justify-content: center;
             text-align: center;
-            height: 100%;
-            padding: 10px;
+            padding: 5px;
             position: relative;
             cursor: pointer;
+            overflow: hidden;
         }
 
         .grid-item span {
-            font-size: 16px;
+            font-size: 14px; /* Reduced for better fit */
             font-weight: bold;
-            line-height: 1.2;
+            line-height: 1.1; /* Slightly tighter line-height */
             color: #333;
             white-space: normal;
             word-break: break-word;
             display: -webkit-box;
             -webkit-box-orient: vertical;
-            -webkit-line-clamp: 3;
+            -webkit-line-clamp: 3; /* Still clamp to 3 lines */
             overflow: hidden;
-            max-width: 100%;
-            margin-top: 5px;
+            max-width: 95%;
+            margin-top: 2px;
         }
 
         .free-square {
@@ -105,8 +112,8 @@
         }
 
         .free-square img {
-            max-width: 105px; 
-            max-height: 105px; 
+            max-width: 90%;
+            max-height: 90%;
         }
 
         .grid-item.marked::after {
@@ -130,6 +137,7 @@
             justify-content: center;
             align-items: center;
             margin: 5px 0;
+            flex-wrap: wrap;
         }
     </style>
 </head>
@@ -137,7 +145,6 @@
     <main>
         <button onclick="generateBingoCard()">Create Card!</button>
         <div id="bingoCardContainer">
-            <img class="background" src="https://i.imgur.com/wSbpsp6.png" alt="Bingo Card Background" />
             <div class="grid-area" id="bingoGrid"></div>
         </div>
         <div class="button-row">
@@ -181,8 +188,8 @@
             "Complete a game puzzle"
         ];
 
-        let currentCard = null;   // 2D array: each cell = an item text or "Free Square"
-        let markedStates = null;  // 2D array of booleans
+        let currentCard = null;   
+        let markedStates = null;  
 
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
@@ -195,6 +202,7 @@
         function generateBingoCard() {
             const shuffledItems = shuffleArray([...items]);
             const bingoCard = Array.from({ length: 5 }, () => []);
+
             let itemIndex = 0;
             for (let row = 0; row < 5; row++) {
                 for (let col = 0; col < 5; col++) {
@@ -205,6 +213,7 @@
                     }
                 }
             }
+
             currentCard = bingoCard;
             markedStates = Array.from({ length: 5 }, () => Array(5).fill(false));
             renderBingoCard(bingoCard, markedStates);
@@ -228,6 +237,7 @@
                         const span = document.createElement("span");
                         span.textContent = bingoCard[row][col];
                         div.appendChild(span);
+
                         div.addEventListener("click", () => {
                             div.classList.toggle("marked");
                             markedStates[row][col] = div.classList.contains("marked");
@@ -260,7 +270,6 @@
             return indices;
         }
 
-        // Convert markedStates to a binary string
         function markedToBinary() {
             let bin = "";
             for (let row = 0; row < 5; row++) {
@@ -271,23 +280,18 @@
             return bin;
         }
 
-        // Convert binary string to base64
         function binToBase64(bin) {
-            // Convert binary to a byte array
             const len = Math.ceil(bin.length / 8);
             const bytes = new Uint8Array(len);
             for (let i = 0; i < len; i++) {
                 const chunk = bin.slice(i*8, i*8+8).padEnd(8, '0');
                 bytes[i] = parseInt(chunk, 2);
             }
-            // base64 encode
             let str = String.fromCharCode.apply(null, bytes);
             return btoa(str);
         }
 
-        // Convert indices array to base64
         function indicesToBase64(indices) {
-            const bytes = new Uint8Array(indices.length * 2); 
             const b = new Uint8Array(indices.length);
             for (let i = 0; i < indices.length; i++) {
                 b[i] = (indices[i] === -1) ? 255 : indices[i];
@@ -296,7 +300,6 @@
             return btoa(str);
         }
 
-        // Decompress from URL:
         function base64ToIndices(b64) {
             const str = atob(b64);
             const arr = new Uint8Array(str.length);
@@ -319,7 +322,6 @@
             return bin.slice(0, 25);
         }
 
-        // Rebuild card and marked states from compressed format
         function rebuildCard(indices, bin) {
             const bingoCard = Array.from({ length: 5 }, () => []);
             const marked = Array.from({ length: 5 }, () => []);
